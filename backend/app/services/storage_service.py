@@ -20,7 +20,10 @@ def _upload(bucket: str, path: str, content: bytes, content_type: str) -> None:
         "x-upsert": "true",
     }
     response = requests.post(url, headers=headers, data=content, timeout=30)
-    response.raise_for_status()
+    if not response.ok:
+        raise requests.HTTPError(
+            f"{response.status_code} uploading to {bucket}/{path}: {response.text}", response=response
+        )
 
 
 def upload_statement_file(path: str, content: bytes, content_type: str) -> str:
