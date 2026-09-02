@@ -2,16 +2,14 @@ import json
 import logging
 import uuid
 
-from google import genai
-from google.genai import errors as genai_errors
-from google.genai import types
+import anthropic
 
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-MODEL = "gemini-3.6-flash"
+MODEL = "claude-haiku-4-5"
 
 # Merchant substring (uppercased) -> category name. First match wins.
 # Not exhaustive by design — unmatched merchants fall through to the LLM,
@@ -65,10 +63,10 @@ def rules_based_category(description: str, categories_by_name: dict[str, uuid.UU
     return None
 
 
-def _client() -> genai.Client | None:
-    if not settings.gemini_api_key:
+def _client() -> anthropic.Anthropic | None:
+    if not settings.anthropic_api_key:
         return None
-    return genai.Client(api_key=settings.gemini_api_key)
+    return anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
 
 def llm_category(description: str, category_names: list[str]) -> str | None:
@@ -83,30 +81,33 @@ def llm_category(description: str, category_names: list[str]) -> str | None:
         "type": "object",
         "properties": {
             "category": {
-                "type": ["string", "null"],
-                "enum": [*category_names, None],
+                "anyOf": [{"type": "string", "enum": category_names}, {"type": "null"}],
                 "description": "Best-fitting category name, or null if none fit confidently.",
             },
         },
         "required": ["category"],
+        "additionalProperties": False,
     }
 
     try:
-        response = client.models.generate_content(
+        response = client.messages.create(
             model=MODEL,
-            contents=f"Merchant/transaction description: {description!r}\n\nPick the best category.",
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_json_schema=schema,
-                max_output_tokens=100,
-            ),
+            max_tokens=100,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"Merchant/transaction description: {description!r}\n\nPick the best category.",
+                }
+            ],
+            output_config={"format": {"type": "json_schema", "schema": schema}},
         )
-    except genai_errors.APIError as exc:
+    except anthropic.APIError as exc:
         logger.warning("LLM categorization failed: %s", exc)
         return None
 
     try:
-        parsed = json.loads(response.text)
-    except (TypeError, ValueError):
+        text = next(block.text for block in response.content if block.type == "text")
+        parsed = json.loads(text)
+    except (StopIteration, TypeError, ValueError):
         return None
     return parsed.get("category")

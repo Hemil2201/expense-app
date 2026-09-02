@@ -35,7 +35,7 @@ def process_statement(statement_upload_id: uuid.UUID, raw_bytes: bytes, filename
             raw_text = extract_pdf_text(raw_bytes) if is_pdf else raw_bytes.decode("utf-8", errors="ignore")
             minimized = minimize_statement_text(raw_text)
             # minimized is None when the text doesn't confidently look like
-            # transaction rows — refuse to send it to Gemini at all rather
+            # transaction rows — refuse to send it to the LLM at all rather
             # than fall back to the unfiltered original (which could carry
             # name/address/account number). This statement fails to parse
             # instead; the failure message points the user at a different

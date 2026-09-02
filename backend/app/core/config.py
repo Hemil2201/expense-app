@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 30
 
-    gemini_api_key: str = ""
+    anthropic_api_key: str = ""
 
     env: str = "dev"
 
