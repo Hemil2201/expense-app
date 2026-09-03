@@ -12,6 +12,7 @@ import com.expensesplitter.app.data.repository.Category
 import com.expensesplitter.app.data.repository.CurrentUser
 import com.expensesplitter.app.data.repository.ExpenseRepository
 import com.expensesplitter.app.data.repository.PendingReceiptDraftHolder
+import com.expensesplitter.app.ui.util.sanitizeMoneyInput
 import java.time.LocalDate
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -79,18 +80,7 @@ class AddExpenseViewModel(
     // input, some third-party keyboards all bypass it), so letters could
     // slip into an amount meant to be currency. Filter here instead: only
     // digits and a single decimal point, at most 2 digits after it.
-    fun updateAmount(value: String) {
-        val digitsAndDot = value.filter { it.isDigit() || it == '.' }
-        val firstDotIndex = digitsAndDot.indexOf('.')
-        val sanitized = if (firstDotIndex == -1) {
-            digitsAndDot
-        } else {
-            val whole = digitsAndDot.substring(0, firstDotIndex).filter { it.isDigit() }
-            val fraction = digitsAndDot.substring(firstDotIndex + 1).filter { it.isDigit() }.take(2)
-            "$whole.$fraction"
-        }
-        state = state.copy(amount = sanitized)
-    }
+    fun updateAmount(value: String) { state = state.copy(amount = sanitizeMoneyInput(value)) }
     fun selectCurrency(value: String) { state = state.copy(currency = value) }
     fun updateDescription(value: String) { state = state.copy(description = value) }
     fun updateDate(value: LocalDate) { state = state.copy(date = value) }
@@ -99,7 +89,7 @@ class AddExpenseViewModel(
     fun toggleShared(shared: Boolean) { state = state.copy(isShared = shared) }
     fun selectSplitType(type: String) { state = state.copy(splitType = type, splitValues = emptyMap()) }
     fun updateSplitValue(userId: String, value: String) {
-        state = state.copy(splitValues = state.splitValues + (userId to value))
+        state = state.copy(splitValues = state.splitValues + (userId to sanitizeMoneyInput(value)))
     }
 
     fun submit(onSuccess: () -> Unit) {

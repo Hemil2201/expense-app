@@ -3,6 +3,7 @@ package com.expensesplitter.app.data.repository
 import com.expensesplitter.app.data.remote.ApiService
 import com.expensesplitter.app.data.remote.dto.ResolveTransactionDto
 import com.expensesplitter.app.data.remote.dto.SplitInputDto
+import com.expensesplitter.app.data.remote.dto.StatementTransactionDto
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -55,20 +56,11 @@ class StatementRepository(private val apiService: ApiService) {
     }
 
     suspend fun getTransactions(id: String): List<StatementTransaction> =
-        apiService.getStatementTransactions(id).map {
-            StatementTransaction(
-                id = it.id,
-                rawDate = it.raw_date,
-                rawDescription = it.raw_description,
-                rawAmount = it.raw_amount,
-                matchedCategoryId = it.matched_category_id,
-                needsClarification = it.needs_clarification,
-                userClarificationNote = it.user_clarification_note,
-                isDuplicateOf = it.is_duplicate_of,
-                resolvedExpenseId = it.resolved_expense_id,
-            )
-        }
+        apiService.getStatementTransactions(id).map { it.toDomain() }
 
+    // Returns the updated transaction straight from the resolve response
+    // instead of discarding it — the caller can apply it to local state
+    // immediately without a follow-up fetch just to see what changed.
     suspend fun resolveTransaction(
         transactionId: String,
         categoryId: String?,
@@ -78,9 +70,9 @@ class StatementRepository(private val apiService: ApiService) {
         splitValues: Map<String, String>?,
         clarificationNote: String?,
         confirmDuplicate: Boolean,
-    ) {
+    ): StatementTransaction {
         val splits = splitValues?.map { (userId, value) -> SplitInputDto(userId, value) }
-        apiService.resolveTransaction(
+        val dto = apiService.resolveTransaction(
             transactionId,
             ResolveTransactionDto(
                 category_id = categoryId,
@@ -92,5 +84,18 @@ class StatementRepository(private val apiService: ApiService) {
                 confirm_duplicate = confirmDuplicate,
             ),
         )
+        return dto.toDomain()
     }
+
+    private fun StatementTransactionDto.toDomain() = StatementTransaction(
+        id = id,
+        rawDate = raw_date,
+        rawDescription = raw_description,
+        rawAmount = raw_amount,
+        matchedCategoryId = matched_category_id,
+        needsClarification = needs_clarification,
+        userClarificationNote = user_clarification_note,
+        isDuplicateOf = is_duplicate_of,
+        resolvedExpenseId = resolved_expense_id,
+    )
 }

@@ -102,6 +102,19 @@ class StatementUploadViewModel(
         }
     }
 
+    // Previously this did resolveTransaction, then getSummary, then
+    // getTransactions, then loadReview() — which itself re-fetched
+    // getTransactions AGAIN (discarding the one just fetched) plus
+    // getCategories and getLoginUsers. Six sequential network round-trips,
+    // none run in parallel, for one button tap — that was the actual cause
+    // of the noticeable delay (categories/users never change mid-review, so
+    // refetching them every tap bought nothing, and the resolve response
+    // already contains everything needed to update the row).
+    //
+    // Now: one call updates the tapped row immediately from its own
+    // response; a summary refresh (for the header counts and the
+    // all-resolved -> completed transition) runs after, in the background,
+    // without blocking that row update.
     fun resolve(
         transactionId: String,
         categoryId: String?,
@@ -115,29 +128,56 @@ class StatementUploadViewModel(
     ) {
         val current = state as? StatementFlowState.Review ?: return
         viewModelScope.launch {
-            val resolveError = try {
+            val updated = try {
                 statementRepository.resolveTransaction(
                     transactionId, categoryId, paidBy, isShared, splitType, splitValues, clarificationNote, confirmDuplicate,
                 )
-                null
             } catch (e: Exception) {
-                e.message ?: "Failed to save"
+                // This is a shared statement review (either partner can
+                // resolve rows from their own phone) — a failure here may
+                // just mean the other person already resolved this exact
+                // row. One fetch to check, rather than assuming a real
+                // error.
+                val refreshed = try {
+                    statementRepository.getTransactions(current.statementId)
+                } catch (refreshException: Exception) {
+                    onError(e.message ?: "Failed to save")
+                    return@launch
+                }
+                val stillUnresolved = refreshed.find { it.id == transactionId }?.resolvedExpenseId == null
+                if (stillUnresolved) {
+                    onError(e.message ?: "Failed to save")
+                    return@launch
+                }
+                applyTransactions(refreshed)
+                refreshSummaryInBackground(current.statementId)
+                return@launch
             }
 
-            // Refresh regardless of success/failure — this is a shared
-            // statement review (either partner can resolve rows from their
-            // own phone), so a failure here may just mean the other person
-            // already resolved this exact row. Only surface the error if,
-            // after refreshing, this transaction is genuinely still
-            // unresolved.
+            applyTransactions(current.transactions.map { if (it.id == transactionId) updated else it })
+            refreshSummaryInBackground(current.statementId)
+        }
+    }
+
+    private fun applyTransactions(transactions: List<StatementTransaction>) {
+        val current = state as? StatementFlowState.Review ?: return
+        state = current.copy(transactions = transactions)
+    }
+
+    private fun refreshSummaryInBackground(statementId: String) {
+        viewModelScope.launch {
             try {
-                val summary = statementRepository.getSummary(current.statementId)
-                val transactions = statementRepository.getTransactions(current.statementId)
-                loadReview(current.statementId, summary)
-                val stillUnresolved = transactions.find { it.id == transactionId }?.resolvedExpenseId == null
-                if (resolveError != null && stillUnresolved) onError(resolveError)
+                val summary = statementRepository.getSummary(statementId)
+                val current = state as? StatementFlowState.Review ?: return@launch
+                state = if (summary.status == "completed") {
+                    StatementFlowState.Done(summary)
+                } else {
+                    current.copy(summary = summary)
+                }
             } catch (e: Exception) {
-                onError(resolveError ?: e.message ?: "Failed to refresh")
+                // Best-effort — the row itself already reflects this
+                // resolve from the response above, so a failed background
+                // refresh isn't user-facing.
             }
         }
     }

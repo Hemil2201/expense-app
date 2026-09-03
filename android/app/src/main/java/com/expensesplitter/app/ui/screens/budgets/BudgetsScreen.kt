@@ -3,6 +3,7 @@ package com.expensesplitter.app.ui.screens.budgets
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -53,6 +55,7 @@ import com.expensesplitter.app.ui.components.SkeletonList
 import com.expensesplitter.app.ui.theme.BalanceColors
 import com.expensesplitter.app.ui.theme.HeroShapes
 import com.expensesplitter.app.ui.theme.Spacing
+import com.expensesplitter.app.ui.util.sanitizeMoneyInput
 
 private data class EditingTarget(
     val userId: String?,
@@ -194,22 +197,37 @@ private fun CategoryBudgetSection(
 
 @Composable
 private fun BudgetProgressRow(label: String, target: String?, actual: String, onClick: () -> Unit) {
+    val targetValue = target?.toDoubleOrNull()
+    val actualValue = actual.toDoubleOrNull() ?: 0.0
+    val isOverBudget = targetValue != null && targetValue > 0 && actualValue > targetValue
+
     Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.xs)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text("$$actual / $$target", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+            Text(
+                "$$actual / $$target",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isOverBudget) BalanceColors.negativeLight else MaterialTheme.colorScheme.onSurface,
+            )
         }
-        val targetValue = target?.toDoubleOrNull()
-        val actualValue = actual.toDoubleOrNull() ?: 0.0
         if (targetValue != null && targetValue > 0) {
             val fraction = (actualValue / targetValue).toFloat().coerceIn(0f, 1f)
             LinearProgressIndicator(
                 progress = { fraction },
                 modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs).height(8.dp),
-                color = if (actualValue > targetValue) BalanceColors.negativeLight else BalanceColors.positiveLight,
+                color = if (isOverBudget) BalanceColors.negativeLight else BalanceColors.positiveLight,
                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
             )
+            if (isOverBudget) {
+                Text(
+                    "Over by $${"%.2f".format(actualValue - targetValue)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = BalanceColors.negativeLight,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
+            }
         }
     }
 }
@@ -222,7 +240,12 @@ private fun EditTargetDialog(target: EditingTarget, onDismiss: () -> Unit, onSav
         onDismissRequest = onDismiss,
         title = { Text("${target.label} target") },
         text = {
-            OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text("Monthly target") })
+            OutlinedTextField(
+                value = value,
+                onValueChange = { value = sanitizeMoneyInput(it) },
+                label = { Text("Monthly target") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, autoCorrectEnabled = false),
+            )
         },
         confirmButton = { TextButton(onClick = { onSave(value) }) { Text("Save") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },

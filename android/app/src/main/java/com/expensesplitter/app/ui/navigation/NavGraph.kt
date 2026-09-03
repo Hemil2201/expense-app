@@ -90,10 +90,24 @@ fun ExpenseSplitterNavGraph(
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
+                                // Re-selecting a tab should pop back to that
+                                // tab's own root, not just no-op while stuck
+                                // on a detail screen pushed on top of it
+                                // (e.g. Expenses -> ExpenseDetail -> tap
+                                // Expenses again). popBackStack(route,
+                                // inclusive = false) does exactly that when
+                                // the route is already somewhere in the back
+                                // stack; it returns false when it isn't
+                                // (switching in from a different tab), so
+                                // fall back to the normal
+                                // save/restore-state tab-switch for that case.
+                                val poppedToRoot = navController.popBackStack(item.route, false)
+                                if (!poppedToRoot) {
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
                             },
                             icon = { Icon(item.icon, contentDescription = item.label) },

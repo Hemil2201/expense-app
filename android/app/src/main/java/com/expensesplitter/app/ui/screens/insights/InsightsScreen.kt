@@ -178,19 +178,26 @@ private fun EmptyChartMessage(text: String) {
 
 @Composable
 private fun BudgetComparisonRow(label: String, target: String?, actual: String) {
+    val targetValue = target?.toDoubleOrNull()
+    val actualValue = actual.toDoubleOrNull() ?: 0.0
+    val isOverBudget = targetValue != null && targetValue > 0 && actualValue > targetValue
+
     Column {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text("$actual / $target", style = MaterialTheme.typography.bodySmall)
+            Text(
+                "$actual / $target",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isOverBudget) BalanceColors.negativeLight else MaterialTheme.colorScheme.onSurface,
+            )
         }
-        val targetValue = target?.toDoubleOrNull()
-        val actualValue = actual.toDoubleOrNull() ?: 0.0
         if (targetValue != null && targetValue > 0) {
             val fraction = (actualValue / targetValue).toFloat().coerceIn(0f, 1f)
             LinearProgressIndicator(
                 progress = { fraction },
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                color = if (actualValue > targetValue) BalanceColors.negativeLight else BalanceColors.positiveLight,
+                color = if (isOverBudget) BalanceColors.negativeLight else BalanceColors.positiveLight,
             )
         }
     }

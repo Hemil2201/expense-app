@@ -10,6 +10,7 @@ backend/.env
 
 # Android / Gradle
 android/.gradle/
+android/.kotlin/
 android/build/
 android/*/build/
 android/local.properties

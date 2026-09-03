@@ -6,10 +6,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Event
@@ -91,7 +94,8 @@ fun AddExpenseScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(Spacing.lg),
+            .padding(Spacing.lg)
+            .imePadding(),
         verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         if (state.receiptPhotoUrl != null) {
@@ -137,7 +141,7 @@ fun AddExpenseScreen(
                     focusedTextColor = MaterialTheme.colorScheme.primary,
                     unfocusedTextColor = MaterialTheme.colorScheme.primary,
                 ),
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, autoCorrectEnabled = false),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -216,6 +220,7 @@ fun AddExpenseScreen(
                         value = state.splitValues[user.id] ?: "",
                         onValueChange = { viewModel.updateSplitValue(user.id, it) },
                         label = { Text(user.name) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, autoCorrectEnabled = false),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

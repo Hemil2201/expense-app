@@ -11,10 +11,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -40,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -123,7 +128,7 @@ private fun FileSelectedContent(fileName: String, onUpload: (bankName: String?, 
     var cardLast4 by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(Spacing.lg),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg).imePadding(),
         verticalArrangement = Arrangement.spacedBy(Spacing.lg),
     ) {
         Text("Selected: $fileName", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -131,12 +136,14 @@ private fun FileSelectedContent(fileName: String, onUpload: (bankName: String?, 
             value = bankName,
             onValueChange = { bankName = it },
             label = { Text("Bank name (optional)") },
+            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = cardLast4,
-            onValueChange = { cardLast4 = it },
+            onValueChange = { cardLast4 = it.filter { c -> c.isDigit() }.take(4) },
             label = { Text("Card last 4 digits (optional)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, autoCorrectEnabled = false),
             modifier = Modifier.fillMaxWidth(),
         )
         Button(
@@ -255,11 +262,19 @@ private fun ReviewContent(review: StatementFlowState.Review, viewModel: Statemen
             )
         }
         LazyColumn(
+            modifier = Modifier.imePadding(),
             contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             items(review.transactions, key = { it.id }) { txn ->
-                TransactionReviewRow(txn, review.categories, review.users, viewModel)
+                TransactionReviewRow(
+                    txn = txn,
+                    categories = review.categories,
+                    users = review.users,
+                    onResolve = { categoryId, paidBy, isShared, splitType, splitValues, note, confirmDuplicate, onError ->
+                        viewModel.resolve(txn.id, categoryId, paidBy, isShared, splitType, splitValues, note, confirmDuplicate, onError)
+                    },
+                )
             }
         }
     }
