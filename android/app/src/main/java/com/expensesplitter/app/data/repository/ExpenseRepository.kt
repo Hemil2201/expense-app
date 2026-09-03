@@ -28,6 +28,7 @@ data class Expense(
     val isShared: Boolean,
     val deletedAt: String?,
     val splits: List<ExpenseSplit>,
+    val receiptPhotoUrl: String?,
 )
 
 data class ExpenseComment(val id: String, val userId: String, val comment: String, val createdAt: String)
@@ -91,7 +92,7 @@ class ExpenseRepository(
     } catch (e: Exception) {
         if (!filter.isEmpty) throw e
         expenseDao.getAll().map {
-            Expense(it.id, it.amount, it.currency, it.date, it.description, null, it.categoryId, it.paidBy, it.isShared, null, emptyList())
+            Expense(it.id, it.amount, it.currency, it.date, it.description, null, it.categoryId, it.paidBy, it.isShared, null, emptyList(), null)
         }.ifEmpty { throw e }
     }
 
@@ -139,6 +140,7 @@ class ExpenseRepository(
         isShared = is_shared,
         deletedAt = deleted_at,
         splits = splits.map { ExpenseSplit(it.user_id, it.amount_owed) },
+        receiptPhotoUrl = receipt_photo_url,
     )
 
     private fun ExpenseDto.toEntity() =

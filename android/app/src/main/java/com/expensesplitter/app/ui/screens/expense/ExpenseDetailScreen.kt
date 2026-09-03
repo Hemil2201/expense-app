@@ -1,5 +1,6 @@
 package com.expensesplitter.app.ui.screens.expense
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,9 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -27,11 +30,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import coil.compose.AsyncImage
 import com.expensesplitter.app.data.repository.AuthRepository
 import com.expensesplitter.app.data.repository.ExpenseRepository
 import com.expensesplitter.app.ui.components.CategoryIcon
@@ -52,6 +59,7 @@ fun ExpenseDetailScreen(
     )
     val state = viewModel.state
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showFullReceipt by remember { mutableStateOf(false) }
     var commentText by remember { mutableStateOf("") }
 
     if (state.isLoading) {
@@ -90,6 +98,26 @@ fun ExpenseDetailScreen(
             }
         }
         expense.notes?.let { Text("Notes: $it", style = MaterialTheme.typography.bodyMedium) }
+
+        expense.receiptPhotoUrl?.let { photoUrl ->
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            Text("Receipt", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            // Receipts are near-always tall/portrait photos — a short wide
+            // strip with Crop zooms into a random horizontal slice and cuts
+            // off the merchant name at the top. A portrait-shaped thumbnail
+            // keeps the top of the receipt (and its total, further down)
+            // actually visible.
+            AsyncImage(
+                model = photoUrl,
+                contentDescription = "Receipt photo",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .width(140.dp)
+                    .height(190.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { showFullReceipt = true },
+            )
+        }
 
         Divider(modifier = Modifier.padding(vertical = 8.dp))
         Text("Comments", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -146,5 +174,19 @@ fun ExpenseDetailScreen(
             },
             dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } },
         )
+    }
+
+    if (showFullReceipt && expense.receiptPhotoUrl != null) {
+        Dialog(onDismissRequest = { showFullReceipt = false }) {
+            AsyncImage(
+                model = expense.receiptPhotoUrl,
+                contentDescription = "Receipt photo",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { showFullReceipt = false },
+            )
+        }
     }
 }
