@@ -20,10 +20,10 @@ private val LightColors = lightColorScheme(
     onSecondary = OnGreenPrimaryLight,
     secondaryContainer = GreenPrimaryContainerLight,
     onSecondaryContainer = OnGreenPrimaryContainerLight,
-    tertiary = VioletTertiaryLight,
-    onTertiary = OnVioletTertiaryLight,
-    tertiaryContainer = VioletTertiaryContainerLight,
-    onTertiaryContainer = OnVioletTertiaryContainerLight,
+    tertiary = IndigoTertiaryLight,
+    onTertiary = OnIndigoTertiaryLight,
+    tertiaryContainer = IndigoTertiaryContainerLight,
+    onTertiaryContainer = OnIndigoTertiaryContainerLight,
     background = BackgroundLight,
     onBackground = OnBackgroundLight,
     surface = BackgroundLight,
@@ -31,10 +31,28 @@ private val LightColors = lightColorScheme(
     surfaceVariant = SurfaceVariantLight,
     onSurfaceVariant = OnSurfaceVariantLight,
     outline = OutlineLight,
+    outlineVariant = OutlineVariantLight,
     error = ErrorLight,
     onError = OnErrorLight,
     errorContainer = ErrorContainerLight,
     onErrorContainer = OnErrorContainerLight,
+    // These are unused by any Text/Icon color directly, but M3 components
+    // (NavigationBar, Menu, Dialog, elevated Card) read them for their
+    // container fill. Leaving them unset falls back to Material's baseline
+    // purple seed — that's the bug that made the bottom nav bar lavender
+    // instead of the app's neutral/green palette.
+    surfaceTint = GreenPrimaryLight,
+    inverseSurface = InverseSurfaceLight,
+    inverseOnSurface = InverseOnSurfaceLight,
+    inversePrimary = GreenPrimaryDark,
+    scrim = ScrimLight,
+    surfaceDim = SurfaceDimLight,
+    surfaceBright = SurfaceBrightLight,
+    surfaceContainerLowest = SurfaceContainerLowestLight,
+    surfaceContainerLow = SurfaceContainerLowLight,
+    surfaceContainer = SurfaceContainerLight,
+    surfaceContainerHigh = SurfaceContainerHighLight,
+    surfaceContainerHighest = SurfaceContainerHighestLight,
 )
 
 private val DarkColors = darkColorScheme(
@@ -46,10 +64,10 @@ private val DarkColors = darkColorScheme(
     onSecondary = OnGreenPrimaryDark,
     secondaryContainer = GreenPrimaryContainerDark,
     onSecondaryContainer = OnGreenPrimaryContainerDark,
-    tertiary = VioletTertiaryDark,
-    onTertiary = OnVioletTertiaryDark,
-    tertiaryContainer = VioletTertiaryContainerDark,
-    onTertiaryContainer = OnVioletTertiaryContainerDark,
+    tertiary = IndigoTertiaryDark,
+    onTertiary = OnIndigoTertiaryDark,
+    tertiaryContainer = IndigoTertiaryContainerDark,
+    onTertiaryContainer = OnIndigoTertiaryContainerDark,
     background = BackgroundDark,
     onBackground = OnBackgroundDark,
     surface = BackgroundDark,
@@ -57,10 +75,23 @@ private val DarkColors = darkColorScheme(
     surfaceVariant = SurfaceVariantDark,
     onSurfaceVariant = OnSurfaceVariantDark,
     outline = OutlineDark,
+    outlineVariant = OutlineVariantDark,
     error = ErrorDark,
     onError = OnErrorDark,
     errorContainer = ErrorContainerDark,
     onErrorContainer = OnErrorContainerDark,
+    surfaceTint = GreenPrimaryDark,
+    inverseSurface = InverseSurfaceDark,
+    inverseOnSurface = InverseOnSurfaceDark,
+    inversePrimary = GreenPrimaryLight,
+    scrim = ScrimDark,
+    surfaceDim = SurfaceDimDark,
+    surfaceBright = SurfaceBrightDark,
+    surfaceContainerLowest = SurfaceContainerLowestDark,
+    surfaceContainerLow = SurfaceContainerLowDark,
+    surfaceContainer = SurfaceContainerDark,
+    surfaceContainerHigh = SurfaceContainerHighDark,
+    surfaceContainerHighest = SurfaceContainerHighestDark,
 )
 
 @Composable
@@ -70,6 +101,7 @@ fun ExpenseSplitterTheme(
 ) {
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColors else LightColors,
+        typography = AppTypography,
         shapes = AppShapes,
         content = content,
     )

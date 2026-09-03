@@ -15,17 +15,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +47,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.expensesplitter.app.data.repository.AuthRepository
 import com.expensesplitter.app.data.repository.ExpenseRepository
 import com.expensesplitter.app.data.repository.StatementRepository
+import com.expensesplitter.app.ui.components.MoneyLoadingIndicator
 import com.expensesplitter.app.ui.theme.BalanceColors
 import com.expensesplitter.app.ui.theme.Spacing
 import java.io.File
@@ -146,7 +153,7 @@ private fun LoadingContent(message: String) {
         verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        CircularProgressIndicator()
+        MoneyLoadingIndicator()
         Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -162,7 +169,7 @@ private fun ProcessingContent(processed: Int, expectedTotal: Int?) {
             // Before parsing has determined how many transactions there
             // are yet (e.g. still extracting text from a PDF) — no count to
             // show progress against.
-            CircularProgressIndicator()
+            MoneyLoadingIndicator()
             Text(
                 "Reading statement…",
                 style = MaterialTheme.typography.bodyMedium,
@@ -189,17 +196,30 @@ private fun ProcessingContent(processed: Int, expectedTotal: Int?) {
 
 @Composable
 private fun DoneContent(total: Int, onDone: () -> Unit) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(Spacing.lg),
         verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            Icons.Filled.CheckCircle,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
-            tint = BalanceColors.positiveLight,
-        )
+        androidx.compose.animation.AnimatedVisibility(
+            visible = visible,
+            enter = scaleIn(initialScale = 0.4f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
+        ) {
+            Box(
+                modifier = Modifier.size(88.dp).background(BalanceColors.positiveLight.copy(alpha = 0.15f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(56.dp),
+                    tint = BalanceColors.positiveLight,
+                )
+            }
+        }
         Text("All done!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text("$total transaction(s) from this statement are now in your expenses.")
         Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Back to Dashboard") }

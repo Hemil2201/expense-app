@@ -1,22 +1,23 @@
 package com.expensesplitter.app.ui.screens.insights
 
 import android.content.Intent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -30,13 +31,17 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.expensesplitter.app.data.repository.BudgetRepository
 import com.expensesplitter.app.data.repository.ReportRepository
-import com.expensesplitter.app.ui.components.BarChart
+import com.expensesplitter.app.ui.components.AreaChart
 import com.expensesplitter.app.ui.components.BarSegment
-import com.expensesplitter.app.ui.components.BarValue
+import com.expensesplitter.app.ui.components.MonthPager
+import com.expensesplitter.app.ui.components.SectionCard
 import com.expensesplitter.app.ui.components.SegmentedBar
+import com.expensesplitter.app.ui.components.SkeletonBlock
+import com.expensesplitter.app.ui.components.TrendPoint
 import com.expensesplitter.app.ui.components.donutSlicesFor
 import com.expensesplitter.app.ui.components.DonutChart
 import com.expensesplitter.app.ui.theme.BalanceColors
+import com.expensesplitter.app.ui.theme.IndigoTertiaryContainerLight
 import com.expensesplitter.app.ui.theme.Spacing
 import java.time.Month
 import kotlinx.coroutines.launch
@@ -50,37 +55,17 @@ fun InsightsScreen(reportRepository: ReportRepository, budgetRepository: BudgetR
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg)) {
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.lg),
+        verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Dashboard", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.md),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = { viewModel.changeMonth(-1) }) { Text("<") }
-            Text(
-                "${Month.of(state.month).name.lowercase().replaceFirstChar { it.uppercase() }} ${state.year}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = Spacing.md),
-            )
-            IconButton(onClick = { viewModel.changeMonth(1) }) { Text(">") }
-        }
-
-        if (state.isLoading) {
-            Box(Modifier.fillMaxWidth().padding(Spacing.xl), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            return
-        }
-        state.error?.let { Text("Couldn't load insights: $it", color = MaterialTheme.colorScheme.error) }
-
-        Button(
-            onClick = {
+            TextButton(onClick = {
                 coroutineScope.launch {
                     val file = reportRepository.downloadCsv(state.month, state.year, context.cacheDir)
                     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
@@ -91,85 +76,99 @@ fun InsightsScreen(reportRepository: ReportRepository, budgetRepository: BudgetR
                     }
                     context.startActivity(Intent.createChooser(intent, "Share expenses CSV"))
                 }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Export CSV") }
-
-        SectionTitle("Category Breakdown")
-        if (state.byCategory.isEmpty()) {
-            EmptyChartMessage("No expenses this month")
-        } else {
-            DonutChart(
-                slices = donutSlicesFor(state.byCategory.map { it.categoryName to (it.total.toDoubleOrNull() ?: 0.0) }),
-                modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.md),
-            )
+            }) { Text("Export CSV") }
         }
-        Divider(modifier = Modifier.padding(vertical = Spacing.lg))
 
-        SectionTitle("Spend Over Time")
-        if (state.trend.isEmpty()) {
-            EmptyChartMessage("Not enough data yet")
-        } else {
-            BarChart(
-                values = state.trend.map { m ->
-                    BarValue(
-                        Month.of(m.month).name.take(3).lowercase().replaceFirstChar { it.uppercase() },
-                        m.total.toDoubleOrNull() ?: 0.0,
-                    )
-                },
-                modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.md),
-            )
-        }
-        Divider(modifier = Modifier.padding(vertical = Spacing.lg))
+        MonthPager(month = state.month, year = state.year, onChange = viewModel::changeMonth)
 
-        SectionTitle("Personal vs Shared")
-        state.report?.let { report ->
-            SegmentedBar(
-                segments = listOf(
-                    BarSegment("Personal", report.personalSpend.toDoubleOrNull() ?: 0.0, BalanceColors.positiveLight),
-                    BarSegment("Shared", report.sharedSpend.toDoubleOrNull() ?: 0.0, BalanceColors.negativeLight),
-                ),
-                modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.md),
-            )
-        }
-        Divider(modifier = Modifier.padding(vertical = Spacing.lg))
-
-        SectionTitle("Budget vs Actual")
-        val budgetRows = state.budgets.flatMap { category ->
-            val personalRows = category.personal.filter { it.targetAmount != null }
-                .map { "${category.categoryName} · ${it.name}" to it }
-            val groupRow = if (category.group.targetAmount != null) {
-                listOf("${category.categoryName} · Group" to category.group)
+        Crossfade(targetState = state.isLoading, animationSpec = tween(250), label = "insights-loading") { loading ->
+            if (loading) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                    repeat(3) {
+                        SkeletonBlock(Modifier.fillMaxWidth().height(180.dp), shape = RoundedCornerShape(32.dp))
+                    }
+                }
             } else {
-                emptyList()
-            }
-            personalRows + groupRow
-        }
-        if (budgetRows.isEmpty()) {
-            EmptyChartMessage("No budget targets set — add one from the Budgets tab")
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                budgetRows.forEach { (label, line) ->
-                    val target = when (line) {
-                        is com.expensesplitter.app.data.repository.PersonalBudgetLine -> line.targetAmount
-                        is com.expensesplitter.app.data.repository.GroupBudgetLine -> line.targetAmount
-                        else -> null
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+                    state.error?.let { Text("Couldn't load insights: $it", color = MaterialTheme.colorScheme.error) }
+
+                    SectionCard("Category Breakdown", tint = MaterialTheme.colorScheme.surfaceContainerLow) {
+                        if (state.byCategory.isEmpty()) {
+                            EmptyChartMessage("No expenses this month")
+                        } else {
+                            DonutChart(
+                                slices = donutSlicesFor(state.byCategory.map { it.categoryName to (it.total.toDoubleOrNull() ?: 0.0) }),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
-                    val actual = when (line) {
-                        is com.expensesplitter.app.data.repository.PersonalBudgetLine -> line.actualSpend
-                        is com.expensesplitter.app.data.repository.GroupBudgetLine -> line.actualSpend
-                        else -> "0"
+
+                    SectionCard("Spend Over Time", tint = IndigoTertiaryContainerLight.copy(alpha = 0.35f)) {
+                        if (state.trend.size < 2) {
+                            EmptyChartMessage("Not enough data yet")
+                        } else {
+                            AreaChart(
+                                points = state.trend.map { m ->
+                                    TrendPoint(
+                                        Month.of(m.month).name.take(3).lowercase().replaceFirstChar { it.uppercase() },
+                                        m.total.toDoubleOrNull() ?: 0.0,
+                                    )
+                                },
+                                lineColor = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
-                    BudgetComparisonRow(label = label, target = target, actual = actual)
+
+                    SectionCard("Personal vs Shared", tint = MaterialTheme.colorScheme.surfaceContainerLow) {
+                        state.report?.let { report ->
+                            SegmentedBar(
+                                segments = listOf(
+                                    BarSegment("Personal", report.personalSpend.toDoubleOrNull() ?: 0.0, BalanceColors.positiveLight),
+                                    BarSegment("Shared", report.sharedSpend.toDoubleOrNull() ?: 0.0, BalanceColors.negativeLight),
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+
+                    SectionCard("Budget vs Actual", tint = MaterialTheme.colorScheme.surfaceContainerLow) {
+                        val budgetRows = state.budgets.flatMap { category ->
+                            val personalRows = category.personal.filter { it.targetAmount != null }
+                                .map { "${category.categoryName} · ${it.name}" to it }
+                            val groupRow = if (category.group.targetAmount != null) {
+                                listOf("${category.categoryName} · Group" to category.group)
+                            } else {
+                                emptyList()
+                            }
+                            personalRows + groupRow
+                        }
+                        if (budgetRows.isEmpty()) {
+                            EmptyChartMessage("No budget targets set — add one from the Budgets tab")
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                                budgetRows.forEach { (label, line) ->
+                                    val target = when (line) {
+                                        is com.expensesplitter.app.data.repository.PersonalBudgetLine -> line.targetAmount
+                                        is com.expensesplitter.app.data.repository.GroupBudgetLine -> line.targetAmount
+                                        else -> null
+                                    }
+                                    val actual = when (line) {
+                                        is com.expensesplitter.app.data.repository.PersonalBudgetLine -> line.actualSpend
+                                        is com.expensesplitter.app.data.repository.GroupBudgetLine -> line.actualSpend
+                                        else -> "0"
+                                    }
+                                    BudgetComparisonRow(label = label, target = target, actual = actual)
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(Spacing.xl))
                 }
             }
         }
     }
-}
-
-@Composable
-private fun SectionTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
 }
 
 @Composable

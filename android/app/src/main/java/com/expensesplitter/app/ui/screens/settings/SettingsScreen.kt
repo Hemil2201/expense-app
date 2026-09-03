@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,7 +37,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
 import com.expensesplitter.app.data.repository.AuthRepository
 import com.expensesplitter.app.ui.components.ActionRow
+import com.expensesplitter.app.ui.theme.HeroShapes
 import com.expensesplitter.app.ui.theme.Spacing
+import com.expensesplitter.app.ui.theme.categoryColorFor
 import java.io.File
 
 @Composable
@@ -68,9 +72,13 @@ fun SettingsScreen(authRepository: AuthRepository, onLoggedOut: () -> Unit) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
 
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            val accent = categoryColorFor(sessionUser?.name ?: "?")
             Box(
                 modifier = Modifier
-                    .size(96.dp)
+                    .size(104.dp)
+                    .clip(CircleShape)
+                    .background(Brush.linearGradient(listOf(accent, accent.copy(alpha = 0.4f))))
+                    .padding(4.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primaryContainer)
                     .clickable(enabled = !state.isUploading) { pickImageLauncher.launch(arrayOf("image/*")) },
@@ -99,16 +107,18 @@ fun SettingsScreen(authRepository: AuthRepository, onLoggedOut: () -> Unit) {
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
-        Column {
-            ActionRow(
-                label = "Log out",
-                icon = Icons.Filled.Logout,
-                iconTint = MaterialTheme.colorScheme.error,
-                onClick = {
-                    authRepository.logout()
-                    onLoggedOut()
-                },
-            )
+        Surface(shape = HeroShapes.heroCard, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+            Column(modifier = Modifier.padding(horizontal = Spacing.md)) {
+                ActionRow(
+                    label = "Log out",
+                    icon = Icons.Filled.Logout,
+                    iconTint = MaterialTheme.colorScheme.error,
+                    onClick = {
+                        authRepository.logout()
+                        onLoggedOut()
+                    },
+                )
+            }
         }
     }
 }

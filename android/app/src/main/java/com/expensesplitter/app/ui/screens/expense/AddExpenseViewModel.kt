@@ -74,7 +74,23 @@ class AddExpenseViewModel(
         }
     }
 
-    fun updateAmount(value: String) { state = state.copy(amount = value) }
+    // The field only hints a numeric keyboard (KeyboardType.Decimal) — that
+    // doesn't actually block other input (paste, IME auto-suggest, adb/test
+    // input, some third-party keyboards all bypass it), so letters could
+    // slip into an amount meant to be currency. Filter here instead: only
+    // digits and a single decimal point, at most 2 digits after it.
+    fun updateAmount(value: String) {
+        val digitsAndDot = value.filter { it.isDigit() || it == '.' }
+        val firstDotIndex = digitsAndDot.indexOf('.')
+        val sanitized = if (firstDotIndex == -1) {
+            digitsAndDot
+        } else {
+            val whole = digitsAndDot.substring(0, firstDotIndex).filter { it.isDigit() }
+            val fraction = digitsAndDot.substring(firstDotIndex + 1).filter { it.isDigit() }.take(2)
+            "$whole.$fraction"
+        }
+        state = state.copy(amount = sanitized)
+    }
     fun selectCurrency(value: String) { state = state.copy(currency = value) }
     fun updateDescription(value: String) { state = state.copy(description = value) }
     fun updateDate(value: LocalDate) { state = state.copy(date = value) }

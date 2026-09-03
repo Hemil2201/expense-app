@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -32,6 +31,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.expensesplitter.app.data.repository.PendingReceiptDraftHolder
 import com.expensesplitter.app.data.repository.ReceiptRepository
+import com.expensesplitter.app.ui.components.MoneyLoadingIndicator
 import com.expensesplitter.app.ui.theme.Spacing
 import java.io.File
 
@@ -89,7 +89,7 @@ fun ReceiptScanScreen(
         )
 
         if (state.isScanning) {
-            CircularProgressIndicator()
+            MoneyLoadingIndicator()
             Text("Reading receipt…", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             Button(onClick = { takePictureLauncher.launch(cameraUri) }, modifier = Modifier.fillMaxWidth()) { Text("Take Photo") }

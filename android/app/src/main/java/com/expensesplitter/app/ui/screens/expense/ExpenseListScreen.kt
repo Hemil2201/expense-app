@@ -1,5 +1,7 @@
 package com.expensesplitter.app.ui.screens.expense
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Divider
@@ -38,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -50,7 +51,10 @@ import com.expensesplitter.app.data.repository.ExpenseFilter
 import com.expensesplitter.app.data.repository.ExpenseRepository
 import com.expensesplitter.app.data.repository.PendingCategoryFilterHolder
 import com.expensesplitter.app.ui.components.CategoryIcon
+import com.expensesplitter.app.ui.components.EmptyState
+import com.expensesplitter.app.ui.components.SkeletonList
 import com.expensesplitter.app.ui.theme.BalanceColors
+import com.expensesplitter.app.ui.theme.MoneyType
 import com.expensesplitter.app.ui.theme.Spacing
 import java.math.BigDecimal
 import java.time.Instant
@@ -108,26 +112,31 @@ fun ExpenseListScreen(
                 Text("Recently Deleted", style = MaterialTheme.typography.labelMedium)
             }
 
-            when {
-                state.isLoading -> Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.padding(24.dp)) }
-                state.error != null -> Box(Modifier.fillMaxSize()) {
-                    Text("Couldn't load expenses: ${state.error}", modifier = Modifier.padding(24.dp))
-                }
-                state.expenses.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No expenses match these filters")
-                }
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 96.dp),
-                ) {
-                    items(state.expenses) { expense ->
-                        ExpenseRow(
-                            expense = expense,
-                            category = state.categories.find { it.id == expense.categoryId },
-                            sessionUserId = sessionUserId,
-                            onClick = { onOpenExpense(expense.id) },
-                        )
-                        Divider(modifier = Modifier.padding(horizontal = Spacing.lg))
+            Crossfade(targetState = state.isLoading, animationSpec = tween(250), label = "expenses-loading") { loading ->
+                when {
+                    loading -> SkeletonList(rows = 6)
+                    state.error != null -> Box(Modifier.fillMaxSize()) {
+                        Text("Couldn't load expenses: ${state.error}", modifier = Modifier.padding(24.dp))
+                    }
+                    state.expenses.isEmpty() -> EmptyState(
+                        icon = Icons.Filled.ReceiptLong,
+                        title = "No expenses yet",
+                        message = "Add your first expense with the + button, or try adjusting your filters.",
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    else -> LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 96.dp),
+                    ) {
+                        items(state.expenses) { expense ->
+                            ExpenseRow(
+                                expense = expense,
+                                category = state.categories.find { it.id == expense.categoryId },
+                                sessionUserId = sessionUserId,
+                                onClick = { onOpenExpense(expense.id) },
+                            )
+                            Divider(modifier = Modifier.padding(horizontal = Spacing.lg))
+                        }
                     }
                 }
             }
@@ -167,11 +176,11 @@ private fun FilterRow(
 ) {
     Column {
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.md, vertical = Spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
-            TextButton(onClick = onPickStartDate) { Text(filter.startDate ?: "From") }
-            TextButton(onClick = onPickEndDate) { Text(filter.endDate ?: "To") }
+            FilterChip(selected = filter.startDate != null, onClick = onPickStartDate, label = { Text(filter.startDate ?: "From") })
+            FilterChip(selected = filter.endDate != null, onClick = onPickEndDate, label = { Text(filter.endDate ?: "To") })
 
             FilterChip(
                 selected = filter.isShared == false,
@@ -246,13 +255,12 @@ private fun ExpenseRow(
                 val color = if (netToMe >= BigDecimal.ZERO) BalanceColors.positiveLight else BalanceColors.negativeLight
                 Text(
                     "${expense.currency} ${netToMe.abs()}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MoneyType.small,
                     color = color,
                 )
                 Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
-                Text("${expense.currency} ${expense.amount}", style = MaterialTheme.typography.bodyLarge)
+                Text("${expense.currency} ${expense.amount}", style = MoneyType.small, color = MaterialTheme.colorScheme.onBackground)
                 Text("personal", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

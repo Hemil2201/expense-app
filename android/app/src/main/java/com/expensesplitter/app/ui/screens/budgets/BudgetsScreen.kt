@@ -1,5 +1,7 @@
 package com.expensesplitter.app.ui.screens.budgets
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,14 +10,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -23,11 +25,11 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,9 +47,12 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.expensesplitter.app.data.repository.BudgetRepository
 import com.expensesplitter.app.data.repository.CategoryBudgetSummary
 import com.expensesplitter.app.ui.components.CategoryIcon
+import com.expensesplitter.app.ui.components.EmptyState
+import com.expensesplitter.app.ui.components.MonthPager
+import com.expensesplitter.app.ui.components.SkeletonList
 import com.expensesplitter.app.ui.theme.BalanceColors
+import com.expensesplitter.app.ui.theme.HeroShapes
 import com.expensesplitter.app.ui.theme.Spacing
-import java.time.Month
 
 private data class EditingTarget(
     val userId: String?,
@@ -92,39 +97,37 @@ fun BudgetsScreen(budgetRepository: BudgetRepository) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = Spacing.lg, top = Spacing.lg, end = Spacing.lg),
             )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(Spacing.md),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = { viewModel.changeMonth(-1) }) { Text("<") }
-                Text(
-                    "${Month.of(state.month).name.lowercase().replaceFirstChar { it.uppercase() }} ${state.year}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = Spacing.md),
-                )
-                IconButton(onClick = { viewModel.changeMonth(1) }) { Text(">") }
-            }
+            MonthPager(
+                month = state.month,
+                year = state.year,
+                onChange = viewModel::changeMonth,
+                modifier = Modifier.padding(vertical = Spacing.sm),
+            )
 
-            when {
-                state.isLoading -> Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.padding(24.dp)) }
-                state.error != null -> Box(Modifier.fillMaxSize()) {
-                    Text("Couldn't load budgets: ${state.error}", modifier = Modifier.padding(24.dp))
-                }
-                categoriesWithTargets.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        "No budget targets set yet — tap + to add one",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(Spacing.lg),
+            Crossfade(targetState = state.isLoading, animationSpec = tween(250), label = "budgets-loading") { loading ->
+                when {
+                    loading -> SkeletonList(rows = 4)
+                    state.error != null -> Box(Modifier.fillMaxSize()) {
+                        Text("Couldn't load budgets: ${state.error}", modifier = Modifier.padding(24.dp))
+                    }
+                    categoriesWithTargets.isEmpty() -> EmptyState(
+                        icon = Icons.Filled.Savings,
+                        title = "No budget targets yet",
+                        message = "Tap the + button to set a monthly target for a category.",
+                        modifier = Modifier.fillMaxSize(),
                     )
-                }
-                else -> LazyColumn(contentPadding = PaddingValues(bottom = 96.dp)) {
-                    items(categoriesWithTargets) { (category, personalWithTarget) ->
-                        CategoryBudgetSection(category, personalWithTarget) { userId, label, current ->
-                            editing = EditingTarget(userId, category.categoryId, label, current)
+                    else -> LazyColumn(
+                        contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                    ) {
+                        items(categoriesWithTargets) { (category, personalWithTarget) ->
+                            Surface(shape = HeroShapes.heroCard, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                                CategoryBudgetSection(category, personalWithTarget) { userId, label, current ->
+                                    editing = EditingTarget(userId, category.categoryId, label, current)
+                                }
+                            }
                         }
-                        Divider(modifier = Modifier.padding(horizontal = Spacing.lg))
+                        item { androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = 80.dp)) }
                     }
                 }
             }
@@ -191,10 +194,10 @@ private fun CategoryBudgetSection(
 
 @Composable
 private fun BudgetProgressRow(label: String, target: String?, actual: String, onClick: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = Spacing.xs)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text("$actual / $target", style = MaterialTheme.typography.bodySmall)
+            Text("$$actual / $$target", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
         }
         val targetValue = target?.toDoubleOrNull()
         val actualValue = actual.toDoubleOrNull() ?: 0.0
@@ -202,8 +205,10 @@ private fun BudgetProgressRow(label: String, target: String?, actual: String, on
             val fraction = (actualValue / targetValue).toFloat().coerceIn(0f, 1f)
             LinearProgressIndicator(
                 progress = { fraction },
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs).height(8.dp),
                 color = if (actualValue > targetValue) BalanceColors.negativeLight else BalanceColors.positiveLight,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
             )
         }
     }
