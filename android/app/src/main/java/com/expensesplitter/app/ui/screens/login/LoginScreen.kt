@@ -18,17 +18,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -83,7 +93,7 @@ fun LoginScreen(authRepository: AuthRepository, onLoggedIn: () -> Unit) {
         Spacer(Modifier.height(Spacing.xl))
 
         when (state) {
-            is LoginUiState.LoadingUsers, is LoginUiState.LoggingIn -> {
+            is LoginUiState.LoadingUsers -> {
                 CircularProgressIndicator()
             }
             is LoginUiState.PickUser -> {
@@ -92,9 +102,18 @@ fun LoginScreen(authRepository: AuthRepository, onLoggedIn: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(Spacing.md),
                 ) {
                     state.users.forEach { user ->
-                        UserPickRow(name = user.name, onClick = { viewModel.login(user.id, onLoggedIn) })
+                        UserPickRow(name = user.name, onClick = { viewModel.selectUser(user) })
                     }
                 }
+            }
+            is LoginUiState.EnterPin -> {
+                PinEntry(
+                    userName = state.user.name,
+                    error = state.error,
+                    isSubmitting = state.isSubmitting,
+                    onBack = { viewModel.backToUserPicker() },
+                    onSubmit = { pin -> viewModel.login(pin, onLoggedIn) },
+                )
             }
             is LoginUiState.Error -> {
                 Text("Couldn't reach the backend:", color = MaterialTheme.colorScheme.error)
@@ -102,6 +121,53 @@ fun LoginScreen(authRepository: AuthRepository, onLoggedIn: () -> Unit) {
                 Text(state.message, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(Spacing.md))
                 Button(onClick = { viewModel.loadUsers() }) { Text("Retry") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PinEntry(
+    userName: String,
+    error: String?,
+    isSubmitting: Boolean,
+    onBack: () -> Unit,
+    onSubmit: (String) -> Unit,
+) {
+    var pin by remember { mutableStateOf("") }
+
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+            Text("Enter $userName's PIN", style = MaterialTheme.typography.titleMedium)
+        }
+        Spacer(Modifier.height(Spacing.md))
+        OutlinedTextField(
+            value = pin,
+            onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) pin = it },
+            label = { Text("PIN") },
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            isError = error != null,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        error?.let {
+            Spacer(Modifier.height(Spacing.xs))
+            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+        Spacer(Modifier.height(Spacing.md))
+        Button(
+            onClick = { onSubmit(pin) },
+            enabled = pin.isNotEmpty() && !isSubmitting,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (isSubmitting) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp))
+            } else {
+                Text("Log In")
             }
         }
     }

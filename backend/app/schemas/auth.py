@@ -7,6 +7,7 @@ from app.schemas.user import UserOut
 
 class LoginRequest(BaseModel):
     user_id: uuid.UUID
+    pin: str
 
 
 class TokenResponse(BaseModel):

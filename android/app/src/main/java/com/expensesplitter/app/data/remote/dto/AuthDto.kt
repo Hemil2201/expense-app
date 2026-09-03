@@ -3,7 +3,7 @@ package com.expensesplitter.app.data.remote.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class LoginRequestDto(val user_id: String)
+data class LoginRequestDto(val user_id: String, val pin: String)
 
 @Serializable
 data class TokenResponseDto(

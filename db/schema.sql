@@ -18,7 +18,13 @@ create table users (
   name text not null,
   email text not null unique,
   avatar_url text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- bcrypt hash — never store the raw PIN. Login is otherwise just
+  -- "pick your name," so this is the only thing standing between the
+  -- public API and full account access.
+  pin_hash text,
+  failed_login_attempts integer not null default 0,
+  locked_until timestamptz
 );
 
 -- ========================================================= categories ====

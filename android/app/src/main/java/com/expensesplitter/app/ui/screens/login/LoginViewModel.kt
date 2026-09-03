@@ -7,12 +7,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.expensesplitter.app.data.repository.AuthRepository
 import com.expensesplitter.app.data.repository.CurrentUser
+import com.expensesplitter.app.ui.util.detailMessage
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 sealed class LoginUiState {
     data object LoadingUsers : LoginUiState()
     data class PickUser(val users: List<CurrentUser>) : LoginUiState()
-    data object LoggingIn : LoginUiState()
+    data class EnterPin(val user: CurrentUser, val error: String? = null, val isSubmitting: Boolean = false) : LoginUiState()
     data class Error(val message: String) : LoginUiState()
 }
 
@@ -35,14 +37,25 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
         }
     }
 
-    fun login(userId: String, onLoggedIn: () -> Unit) {
-        uiState = LoginUiState.LoggingIn
+    fun selectUser(user: CurrentUser) {
+        uiState = LoginUiState.EnterPin(user)
+    }
+
+    fun backToUserPicker() {
+        loadUsers()
+    }
+
+    fun login(pin: String, onLoggedIn: () -> Unit) {
+        val current = uiState as? LoginUiState.EnterPin ?: return
+        uiState = current.copy(error = null, isSubmitting = true)
         viewModelScope.launch {
             try {
-                authRepository.login(userId)
+                authRepository.login(current.user.id, pin)
                 onLoggedIn()
+            } catch (e: HttpException) {
+                uiState = current.copy(error = e.detailMessage(), isSubmitting = false)
             } catch (e: Exception) {
-                uiState = LoginUiState.Error(e.message ?: "Login failed")
+                uiState = current.copy(error = e.message ?: "Incorrect PIN", isSubmitting = false)
             }
         }
     }

@@ -20,8 +20,8 @@ class AuthRepository(
 ) {
     suspend fun getLoginUsers(): List<CurrentUser> = apiService.getLoginUsers().map { it.toCurrentUser() }
 
-    suspend fun login(userId: String): CurrentUser {
-        val response = apiService.login(LoginRequestDto(user_id = userId))
+    suspend fun login(userId: String, pin: String): CurrentUser {
+        val response = apiService.login(LoginRequestDto(user_id = userId, pin = pin))
         tokenStore.saveSession(
             token = response.access_token,
             userId = response.user.id,
